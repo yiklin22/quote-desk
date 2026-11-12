@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Account - Quote desk{% endblock %}
+{% block main %}
+<h1>Account</h1>
+<p class="hint">{{ account.name }} &middot; {{ account.email }}</p>
+
+<h2>Usage and limits</h2>
+<div class="scroll">
+<table>
+  <thead><tr><th>What</th><th class="num">Used</th><th class="num">Limit</th></tr></thead>
+  <tbody>
+    <tr><td>Enquiries stored</td><td class="num">{{ usage.enquiries }}</td><td class="num">{{ usage.max_enquiries }}</td></tr>
+    <tr><td>New enquiries today (UTC)</td><td class="num">{{ usage.enquiries_today }}</td><td class="num">{{ usage.max_enquiries_per_day }}</td></tr>
+    <tr><td>Price list versions published today (UTC)</td><td class="num">{{ usage.price_lists_today }}</td><td class="num">{{ usage.max_price_lists_per_day }}</td></tr>
+  </tbody>
+</table>
+</div>
+<p class="hint">One enquiry can be up to {{ "{:,}".format(max_chars) }} characters. Deleting enquiries makes room; it does not give back today's allowance.</p>
+
+{% if sample %}
+<form class="card" method="post" action="/account/sample">
+  <h2>Sample data</h2>
+  <p class="hint">Adds 20 invented enquiries to this account only: complete requests, missing details, services not offered, contradictions and discount requests.</p>
+  <button>Load the sample enquiries</button>
+</form>
+{% endif %}
+<form class="card" method="post" action="/account/delete-data" onsubmit="return confirm('Delete every enquiry, quote and price list in this account? This cannot be undone.');">
+  <h2>Delete all data</h2>
+  <p class="hint">Removes every enquiry with its quote, approvals and history, and every price list version. Your login stays, and the price list goes back to the placeholder.</p>
+  <label class="stacked">Password <input type="password" name="password" autocomplete="current-password" required></label>
+  <button class="danger">Delete all my data</button>
+</form>
+<form class="card" method="post" action="/account/delete" onsubmit="return confirm('Delete this account and everything in it? This cannot be undone.');">
+  <h2>Delete account</h2>
+  <p class="hint">Removes the account, its logins and all of its data.</p>
+  <label class="stacked">Password <input type="password" name="password" autocomplete="current-password" required></label>
+  <button class="danger">Delete my account</button>
+</form>
+{% endblock %}

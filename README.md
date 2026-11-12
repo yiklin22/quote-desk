@@ -6,8 +6,10 @@ a versioned price list, and produces a PDF once a person approves it.
 
 Built for one niche: a small cleaning business.
 
-**Status: the seven build milestones are done and tested on invented data.
-Two things in the brief are not done, and both need something I do not have:**
+**Status: the seven build milestones are done and tested on invented data,
+and milestone 8 added login, per-account data, deletion, input limits and
+usage caps. It runs on this machine only and is not hosted anywhere. Two
+things in the brief are not done, and both need something I do not have:**
 
 - **No model is called anywhere.** Enquiries are read by a pattern-based
   extractor, and reply wording comes from fixed templates. The two gates a
@@ -36,6 +38,11 @@ server ([docs/demo-run.txt](docs/demo-run.txt)):
 patterns that read them, so this shows the pricing and blocking rules work.
 It says nothing about how often the extractor reads a real email correctly.
 
+The same run then checks the account boundary on the live server: a second
+account sees no enquiries, the first account's enquiry and PDF answer 404 to
+it, as do its attempts to edit, approve and delete that enquiry; a delete sent
+from another site answers 403; and deleting both accounts ends their logins.
+
 ## Run it
 
 Needs [uv](https://docs.astral.sh/uv/). Without `DATABASE_URL` the app starts
@@ -43,13 +50,26 @@ its own PostgreSQL from the `pgserver` package in `./.pgdata`.
 
 ```bash
 uv sync
-uv run uvicorn quotedesk.app:app --port 8812      # open http://127.0.0.1:8812
-uv run python scripts/demo.py http://127.0.0.1:8812
-uv run pytest                                     # 69 tests, on a real PostgreSQL
+uv run uvicorn quotedesk.app:app --port 8812      # open http://127.0.0.1:8812 and create an account
+uv run python scripts/demo.py http://127.0.0.1:8812   # two throwaway accounts, deleted at the end
+uv run pytest                                     # 90 tests, on a real PostgreSQL
 ```
+
+To try it by hand, create an account and press **Load the sample enquiries**
+on the Account page.
+
+`DATABASE_URL` must point at an empty database. There are no migrations: the
+tables are created on first start, and a database from before accounts existed
+is refused with a message. The bundled PostgreSQL keeps this version's data in
+a database named `quotedesk_v2`; whatever an earlier version stored in
+`.pgdata` is left alone and no longer shown.
 
 ## The screens
 
+0. **Create an account / log in.** Everything below belongs to the account
+   that is logged in, including its price list. The **Account** page shows
+   usage against each limit, loads the sample enquiries, and deletes all data
+   or the whole account (both ask for the password again).
 1. **Enquiry**: paste an email, or fill in a form, or both (form values win).
 2. **Clarification checklist**: each open item with its own control: type the
    answer, agree to leave a service out, or grant or decline a discount.
@@ -74,6 +94,17 @@ email. The layout is one column on a phone, two from 1000 px.
 | Code calculates prices | `test_domain.py::test_fixture_matches_hand_worked_expectation` (20 cases) |
 | Every extracted value quotes the enquiry | `test_domain.py::test_every_extracted_value_quotes_the_enquiry`, `test_verify_drops_values_whose_quote_is_not_in_the_text` |
 | An old quote keeps its prices when the list changes | `test_service.py::test_new_price_list_does_not_change_existing_quotes_until_repriced` |
+| Nothing is readable or changeable without a login | `test_accounts.py::test_every_page_needs_a_login` |
+| One account cannot read or change another's enquiries, quotes or PDFs | `test_accounts.py::test_another_account_sees_and_changes_none_of_it`, `test_service_refuses_another_accounts_enquiry` |
+| Each account prices from its own price list and numbers its own quotes | `test_accounts.py::test_each_account_has_its_own_price_list_and_quote_numbers` |
+| Deleting an enquiry, all data, or an account removes all of it, and only that account's | `test_accounts.py::test_delete_one_enquiry`, `test_delete_all_data_needs_the_password_and_leaves_the_account`, `test_delete_account_removes_everything_and_the_login` |
+| Caps hold: enquiries held, new enquiries per day, price lists per day, sizes | `test_accounts.py::test_cap_on_enquiries_held`, `test_daily_cap_is_not_reset_by_deleting`, `test_caps_on_price_lists_and_extra_lines`, `test_oversized_and_unsized_requests_are_refused_unread` |
+| Repeated wrong passwords lock the login for a while; logout and expiry end a session | `test_accounts.py::test_wrong_password_then_throttle`, `test_logout_and_expiry_end_the_session` |
+| A form on another site cannot act with a visitor's login | `test_accounts.py::test_writes_from_another_site_are_refused` |
+
+For the account tests I broke each rule on purpose, one at a time (enquiry
+lookup, the price list an account reads, the home page list, the cross-site
+check, the daily cap), and each time at least one test failed.
 
 ## Design decisions
 
@@ -94,6 +125,26 @@ email. The layout is one column on a phone, two from 1000 px.
   depends on the date), so it can be reproduced later.
 - **There is no send function.** Not sending is not a setting. The package has
   no mail or HTTP client, and a test fails if one is imported.
+- **The account is checked twice.** Enquiries and price lists carry an
+  `account_id`; quotes, lines, approvals and history hang off their enquiry.
+  The web layer answers 404 for another account's enquiry, the same as for one
+  that does not exist, and every service function takes the account and checks
+  it again.
+- **The price list belongs to the account.** A new account starts with the
+  placeholder as its own version 1, and publishing affects nobody else. Quote
+  numbers count from 1 within an account, so they say nothing about how many
+  other customers there are.
+- **Sessions are random tokens kept server-side**, with only their SHA-256 in
+  the database, so logout ends a session. Passwords are scrypt hashes from the
+  standard library. Rejected alternative: a signed cookie, which cannot be
+  revoked. No new dependency was added.
+- **Cross-site writes are refused by where the request came from**
+  (`Sec-Fetch-Site`, or `Origin` when that is absent), and the cookie is
+  `SameSite=Lax`.
+- **The daily cap is the future spending cap.** Every new enquiry is counted
+  per account per day, and deleting does not give the count back. One enquiry
+  is one read today; when a model reads enquiries, the same counter bounds
+  what an account can spend. An enquiry refused for its content uses none.
 - **Evidence is checked by code.** `verify` drops any extracted value whose
   quoted words are not in the enquiry at the stated position, or whose value
   is not sane for the field, and tells the operator what was dropped.
@@ -131,16 +182,51 @@ source-available) were not needed for this scope and bring license duties.
 - **A real operator's rules.** Travel charges, access, pets, condition of the
   property and judgement calls are not modelled.
 - **Real users.** Nobody has timed a quote or counted corrections.
-- **Access control.** No login; the operator name is a cookie. Not for the
-  internet as it is.
-- **The PDF's look.** Its text is tested; I have not inspected it by eye.
+- **A hosted deployment.** Everything ran on one machine over plain HTTP.
+  HTTPS, a proxy, backups and monitoring are not set up, and nobody but me has
+  reviewed the access control.
+- **The rest of account handling.** No email verification, no password reset,
+  no way to change a password, and one login per account (no teams or roles).
+  A user who forgets the password loses the account.
+- **Schema changes.** There are no migrations, so changing a table means a new
+  empty database.
+- **How anything looks.** The PDF's text and the pages' HTML are tested; this
+  machine has no browser, so I have not seen a screen or the PDF by eye.
+
+## Limits and settings for a hosted demo
+
+All are environment variables; the defaults are in `quotedesk/config.py`.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `QUOTEDESK_INVITE_CODE` | empty | When set, creating an account needs this code. **Set it before anyone else can reach the server**; without it signup is open. |
+| `QUOTEDESK_MAX_ACCOUNTS` | 25 | Accounts that can exist |
+| `QUOTEDESK_MAX_ENQUIRY_CHARS` | 20,000 | One pasted enquiry |
+| `QUOTEDESK_MAX_REQUEST_BYTES` | 500 kB | One request, refused from its `Content-Length` before the body is read |
+| `QUOTEDESK_MAX_PRICE_LIST_BYTES` | 100 kB | One published price list |
+| `QUOTEDESK_MAX_CUSTOM_LINES` | 50 | Extra lines on one quote |
+| `QUOTEDESK_MAX_ENQUIRIES` | 500 | Enquiries an account holds at one time |
+| `QUOTEDESK_MAX_ENQUIRIES_PER_DAY` | 100 | New enquiries an account can add per UTC day |
+| `QUOTEDESK_MAX_PRICE_LISTS_PER_DAY` | 20 | Price list versions an account can publish per UTC day |
+| `QUOTEDESK_SESSION_DAYS` | 14 | How long a login lasts |
+| `QUOTEDESK_COOKIE_SECURE` | off | `1` forces the `Secure` cookie flag. A request that arrives as HTTPS gets it anyway. |
+
+A login is refused for 15 minutes after 5 wrong passwords for one email, or 30
+from one address. Behind a proxy, run uvicorn with `--proxy-headers` so the
+address and the HTTPS scheme are the visitor's, not the proxy's.
 
 ## Next steps
 
 1. Get one operator's price list and 30 of their past enquiries with the
    quotes they actually sent; replace the fixtures.
 2. Add a model extractor and drafter behind the two gates, and measure them.
-3. Login, per-account data, deletion and usage caps, then a hosted demo.
+   This needs an API key and a spending limit; the per-account daily cap is
+   already in place.
+3. Put it on a host with HTTPS and an invite code. This needs a choice of
+   host and a PostgreSQL there; nothing in the code depends on which.
+4. Password reset and email verification, which need a way to send email.
+   That conflicts with "there is no send function" as tested today, so the
+   test would have to allow one named module and nothing else.
 
 ## Layout
 
@@ -150,11 +236,13 @@ quotedesk/
   extraction.py      pattern extractor and the evidence gate
   drafting.py        reply templates and the amounts gate
   pdf.py             approved quote -> PDF
-  models.py          tables: enquiry, price list version, quote, lines, approval, event
-  service.py         use cases
+  models.py          tables: account, enquiry, price list version, quote, lines, approval, event
+  auth.py            passwords, login sessions, login throttling
+  config.py          limits and caps
+  service.py         use cases, all per account
   app.py, web/       FastAPI routes, pages, stylesheet
   pricelist_v1.json  invented placeholder prices
 fixtures/enquiries.json   20 enquiries with hand-worked expectations
-scripts/demo.py           drives a running server through the flow
-tests/                    69 tests
+scripts/demo.py           drives a running server through the flow with two accounts
+tests/                    90 tests
 ```

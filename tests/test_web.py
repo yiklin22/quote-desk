@@ -1,16 +1,5 @@
 """The screens, over HTTP against PostgreSQL."""
-import pytest
-from fastapi.testclient import TestClient
-
 from conftest import BY_ID
-
-
-@pytest.fixture
-def client(session):
-    from quotedesk.app import app
-    with TestClient(app) as c:
-        c.post("/operator", data={"name": "Ana", "next": "/"})
-        yield c
 
 
 def paste(client, eid):

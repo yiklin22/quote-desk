@@ -83,3 +83,8 @@ mark sup { font-size:.62rem; color:var(--accent); margin-left:.2rem; white-space
 button.small { padding:.2rem .5rem; font-size:.82rem; } .inline-form { display:inline; margin-left:.5rem; }
 .cite { white-space:normal; } tr.sum td { border-bottom:0; color:var(--muted); padding-top:.2rem; padding-bottom:.2rem; } tr.sum.total td { color:var(--ink); font-weight:700; border-top:1px solid var(--ink); }
 .primary-link { background:var(--accent); border-color:var(--accent); color:#fff; }
+.who a { color:var(--ink); }
+.card.stack { max-width:26rem; margin:2rem auto; align-items:stretch; }
+.card.stack h1 { margin:0; }
+.card.stack label, label.stacked { display:flex; flex-direction:column; gap:.2rem; font-size:.87rem; color:var(--muted); }
+label.stacked { max-width:22rem; }

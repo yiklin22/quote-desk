@@ -29,7 +29,7 @@
   <tbody>
   {% for r in rows %}
   <tr>
-    <td><a href="/enquiries/{{ r.enq.id }}">{{ r.enq.id }}</a></td>
+    <td><a href="/enquiries/{{ r.enq.id }}">{{ r.enq.number }}</a></td>
     <td>{{ r.enq.received_at.strftime("%Y-%m-%d %H:%M") }}</td>
     <td>{{ r.who }}</td>
     <td><a href="/enquiries/{{ r.enq.id }}">{{ r.preview }}</a></td>
@@ -41,5 +41,5 @@
   </tbody>
 </table>
 </div>
-{% else %}<p class="empty">No enquiries yet. Paste one above.</p>{% endif %}
+{% else %}<p class="empty">No enquiries yet. Paste one above, or load the sample enquiries from <a href="/account">your account page</a>.</p>{% endif %}
 {% endblock %}

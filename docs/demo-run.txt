@@ -1,3 +1,5 @@
+without a login, the home page answers: 303 -> /login?next=/ 
+
 id   category       status           total  expected  checklist
 E01  complete       ready           143.06    143.06  0 blocking
 E02  complete       ready           537.90    537.90  0 blocking
@@ -27,5 +29,9 @@ walk-through with E13 (office clean plus pest control, which is not offered):
   PDF after approval:       HTTP 200 2707 bytes
   after editing the area:    ready 205.70
   PDF after the edit:       HTTP 409
+
+second account: sees no enquiries: True; the first account's enquiry and PDF answer [404, 404]; editing, approving and deleting it answer [404, 404, 404]
+a delete sent from another site answers 403; the quote still totals 205.70
+both demo accounts deleted: [200, 200]; the old login now answers 303
 
 fixtures as expected: 20/20

@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Enquiry {{ enq.id }} - Quote desk{% endblock %}
+{% block title %}Enquiry {{ enq.number }} - Quote desk{% endblock %}
 {% macro source(v, anchor) %}
   {% if v.source == "extracted" %}<a class="cite" href="#{{ anchor }}">&ldquo;{{ v.quote }}&rdquo;</a>
   {% elif v.source == "form" %}<span class="cite manual">entered on the form</span>
   {% else %}<span class="cite manual">typed by {{ v.by or "operator" }}</span>{% endif %}
 {% endmacro %}
 {% block main %}
-<p class="crumb"><a href="/">Enquiries</a> / {{ enq.id }}</p>
+<p class="crumb"><a href="/">Enquiries</a> / {{ enq.number }}</p>
 <div class="titlebar">
-  <h1>Enquiry {{ enq.id }} &middot; quote {{ number }}</h1>
+  <h1>Enquiry {{ enq.number }} &middot; quote {{ number }}</h1>
   <span class="badge st-{{ status }}">{{ status_labels[status] }}</span>
 </div>
 
@@ -132,6 +132,9 @@
   <ul class="log">
     {% for e in enq.events|reverse %}<li><time>{{ e.at.strftime("%Y-%m-%d %H:%M") }}</time> <b>{{ e.actor }}</b> {{ e.action.replace("_", " ") }}{% if e.detail %}: {{ e.detail }}{% endif %}</li>{% endfor %}
   </ul>
+  <form method="post" action="/enquiries/{{ enq.id }}/delete" onsubmit="return confirm('Delete this enquiry with its quote and history?');">
+    <button class="danger">Delete this enquiry</button>
+  </form>
 </section>
 </div>
 {% endblock %}
