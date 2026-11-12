@@ -1,0 +1,399 @@
+{
+ "note": "Invented enquiries. Expected totals were worked out by hand from pricelist_v1.json, not by running the code.",
+ "priced_on": "2026-11-12",
+ "enquiries": [
+  {
+   "id": "E01",
+   "category": "complete",
+   "text": "Hi, we run a small accounting practice in Milton and need our office cleaned weekly. The space is 180 sqm, open plan with a kitchenette. Could you send a quote?\n\nThanks,\nPriya Nair\npriya@nairpartners.example",
+   "expect": {
+    "services": [
+     "office_clean"
+    ],
+    "fields": {
+     "area_sqm": "180",
+     "frequency": "weekly",
+     "customer_email": "priya@nairpartners.example"
+    },
+    "conflicts": [],
+    "unsupported": [],
+    "blockers": [],
+    "total": "143.06"
+   }
+  },
+  {
+   "id": "E02",
+   "category": "complete",
+   "text": "Hello, I'm moving out of my unit in Toowong on the 28th and need an end of lease clean. It's 95 square metres with 2 bathrooms. What would that cost?\n\nRegards,\nTom Becker",
+   "expect": {
+    "services": [
+     "end_of_lease"
+    ],
+    "fields": {
+     "area_sqm": "95",
+     "bathrooms": "2"
+    },
+    "conflicts": [],
+    "unsupported": [],
+    "blockers": [],
+    "total": "537.90"
+   }
+  },
+  {
+   "id": "E03",
+   "category": "complete",
+   "text": "Hi there, looking for a regular clean of our home every two weeks. It's a 3 bedroom, 2 bathroom house in Paddington. Can you quote please?\nCheers,\nMei Lin Chua",
+   "expect": {
+    "services": [
+     "house_clean"
+    ],
+    "fields": {
+     "bedrooms": "3",
+     "bathrooms": "2",
+     "frequency": "fortnightly"
+    },
+    "conflicts": [],
+    "unsupported": [],
+    "blockers": [],
+    "total": "222.75"
+   }
+  },
+  {
+   "id": "E04",
+   "category": "complete",
+   "text": "Good morning. Could I get a price to steam clean the carpets in 4 rooms, and also clean the oven while you're here? One-off job.\nThanks, Daniel Okafor",
+   "expect": {
+    "services": [
+     "carpet_steam",
+     "oven_clean"
+    ],
+    "fields": {
+     "carpet_rooms": "4",
+     "frequency": "one_off"
+    },
+    "conflicts": [],
+    "unsupported": [],
+    "blockers": [],
+    "total": "254.10"
+   }
+  },
+  {
+   "id": "E05",
+   "category": "complete",
+   "text": "Hi, we have 24 windows that need cleaning inside and out. Would prefer a Saturday if possible. Please send a quote.\nSarah Whitlam",
+   "expect": {
+    "services": [
+     "window_clean"
+    ],
+    "fields": {
+     "windows": "24",
+     "weekend": "yes"
+    },
+    "conflicts": [],
+    "unsupported": [],
+    "blockers": [],
+    "total": "300.96"
+   }
+  },
+  {
+   "id": "E06",
+   "category": "complete",
+   "text": "Hello, we need a one-off clean of our office before an inspection. It's only 90 m2.\nKind regards,\nAlex Tran",
+   "expect": {
+    "services": [
+     "office_clean"
+    ],
+    "fields": {
+     "area_sqm": "90",
+     "frequency": "one_off"
+    },
+    "conflicts": [],
+    "unsupported": [],
+    "blockers": [],
+    "total": "132.00"
+   }
+  },
+  {
+   "id": "E07",
+   "category": "complete",
+   "text": "Hi, can you quote a one off house clean for a 2 bedroom, 1 bathroom apartment? We'd also like the 10 windows cleaned.\nThanks\nGrace Park",
+   "expect": {
+    "services": [
+     "house_clean",
+     "window_clean"
+    ],
+    "fields": {
+     "bedrooms": "2",
+     "bathrooms": "1",
+     "windows": "10",
+     "frequency": "one_off"
+    },
+    "conflicts": [],
+    "unsupported": [],
+    "blockers": [],
+    "total": "291.50"
+   }
+  },
+  {
+   "id": "E08",
+   "category": "complete",
+   "text": "Hi, I need a bond clean for a 60 sqm flat with 1 bathroom, plus carpet steam cleaning for 3 rooms. Moving out next Friday.\nRegards, Hamid Rezaei",
+   "expect": {
+    "services": [
+     "carpet_steam",
+     "end_of_lease"
+    ],
+    "fields": {
+     "area_sqm": "60",
+     "bathrooms": "1",
+     "carpet_rooms": "3"
+    },
+    "conflicts": [],
+    "unsupported": [],
+    "blockers": [],
+    "total": "452.10"
+   }
+  },
+  {
+   "id": "E09",
+   "category": "missing_info",
+   "text": "Hello, we need our office cleaned every week, starting next month. How much would it be?\nJordan Blake, Blake Legal",
+   "expect": {
+    "services": [
+     "office_clean"
+    ],
+    "fields": {
+     "frequency": "weekly"
+    },
+    "conflicts": [],
+    "unsupported": [],
+    "blockers": [
+     "MISSING_INFO:area_sqm"
+    ],
+    "total": null
+   }
+  },
+  {
+   "id": "E10",
+   "category": "missing_info",
+   "text": "Hi, I need an end-of-lease clean for my townhouse, it has 2 bathrooms. Keys are due back on the 15th. How much?\nNina",
+   "expect": {
+    "services": [
+     "end_of_lease"
+    ],
+    "fields": {
+     "bathrooms": "2"
+    },
+    "conflicts": [],
+    "unsupported": [],
+    "blockers": [
+     "MISSING_INFO:area_sqm"
+    ],
+    "total": null
+   }
+  },
+  {
+   "id": "E11",
+   "category": "missing_info",
+   "text": "Hi, how much do you charge for a regular clean of my house? Fortnightly would be ideal.\nThanks, Oliver",
+   "expect": {
+    "services": [
+     "house_clean"
+    ],
+    "fields": {
+     "frequency": "fortnightly"
+    },
+    "conflicts": [],
+    "unsupported": [],
+    "blockers": [
+     "MISSING_INFO:bathrooms",
+     "MISSING_INFO:bedrooms"
+    ],
+    "total": null
+   }
+  },
+  {
+   "id": "E12",
+   "category": "unsupported",
+   "text": "Hi, do you do pressure washing? Our driveway and patio need doing.\nSam",
+   "expect": {
+    "services": [],
+    "fields": {},
+    "conflicts": [],
+    "unsupported": [
+     "Pressure washing"
+    ],
+    "blockers": [
+     "NO_SERVICE:-",
+     "UNSUPPORTED_SERVICE:Pressure washing"
+    ],
+    "total": null
+   }
+  },
+  {
+   "id": "E13",
+   "category": "unsupported",
+   "text": "Hello, we need a one-off clean of our 200 sqm office and also pest control for the kitchen area.\nRegards, Lucy Hartono",
+   "expect": {
+    "services": [
+     "office_clean"
+    ],
+    "fields": {
+     "area_sqm": "200",
+     "frequency": "one_off"
+    },
+    "conflicts": [],
+    "unsupported": [
+     "Pest control"
+    ],
+    "blockers": [
+     "UNSUPPORTED_SERVICE:Pest control"
+    ],
+    "total": null
+   }
+  },
+  {
+   "id": "E14",
+   "category": "unsupported",
+   "text": "Hi, can you clean our gutters and the 12 windows at the front of the house?\nThanks, Pete",
+   "expect": {
+    "services": [
+     "window_clean"
+    ],
+    "fields": {
+     "windows": "12"
+    },
+    "conflicts": [],
+    "unsupported": [
+     "Gutter cleaning"
+    ],
+    "blockers": [
+     "UNSUPPORTED_SERVICE:Gutter cleaning"
+    ],
+    "total": null
+   }
+  },
+  {
+   "id": "E15",
+   "category": "contradiction",
+   "text": "Hi, I'd like a quote for a regular clean of our home. It's a 3 bedroom house with 2 bathrooms. Weekly please.\n\nSent from my phone\n\nPS the 4 bedroom place on Latrobe Tce, not our old one.",
+   "expect": {
+    "services": [
+     "house_clean"
+    ],
+    "fields": {
+     "bathrooms": "2",
+     "frequency": "weekly"
+    },
+    "conflicts": [
+     "bedrooms"
+    ],
+    "unsupported": [],
+    "blockers": [
+     "CONTRADICTION:bedrooms"
+    ],
+    "total": null
+   }
+  },
+  {
+   "id": "E16",
+   "category": "contradiction",
+   "text": "Hello, please quote a weekly office clean. The lease says 120 sqm but our floor plan shows 200 square metres including the mezzanine.\nThanks, Farah",
+   "expect": {
+    "services": [
+     "office_clean"
+    ],
+    "fields": {
+     "frequency": "weekly"
+    },
+    "conflicts": [
+     "area_sqm"
+    ],
+    "unsupported": [],
+    "blockers": [
+     "CONTRADICTION:area_sqm"
+    ],
+    "total": null
+   }
+  },
+  {
+   "id": "E17",
+   "category": "contradiction",
+   "text": "Hi, we need a one-off clean of our office, 150 sqm. Actually we'd want you every week if the price is right.\nBen",
+   "expect": {
+    "services": [
+     "office_clean"
+    ],
+    "fields": {
+     "area_sqm": "150"
+    },
+    "conflicts": [
+     "frequency"
+    ],
+    "unsupported": [],
+    "blockers": [
+     "CONTRADICTION:frequency"
+    ],
+    "total": null
+   }
+  },
+  {
+   "id": "E18",
+   "category": "discount",
+   "text": "Hi! I found your flyer. I'd like a one-off house clean, 3 bedrooms and 1 bathroom. Promo code WELCOME10.\nThanks, Aroha",
+   "expect": {
+    "services": [
+     "house_clean"
+    ],
+    "fields": {
+     "bedrooms": "3",
+     "bathrooms": "1",
+     "frequency": "one_off",
+     "promo_code": "WELCOME10"
+    },
+    "conflicts": [],
+    "unsupported": [],
+    "blockers": [],
+    "total": "193.05"
+   }
+  },
+  {
+   "id": "E19",
+   "category": "discount",
+   "text": "Hello, we need weekly cleaning for our 300 sqm office. We also have code WELCOME10 from your website.\nRegards, Victor Lindqvist",
+   "expect": {
+    "services": [
+     "office_clean"
+    ],
+    "fields": {
+     "area_sqm": "300",
+     "frequency": "weekly",
+     "promo_code": "WELCOME10"
+    },
+    "conflicts": [],
+    "unsupported": [],
+    "blockers": [],
+    "total": "238.43"
+   }
+  },
+  {
+   "id": "E20",
+   "category": "discount",
+   "text": "Hi, I need carpet steam cleaning for 5 rooms. Can you do 25% off if I pay cash?\nMarco",
+   "expect": {
+    "services": [
+     "carpet_steam"
+    ],
+    "fields": {
+     "carpet_rooms": "5"
+    },
+    "conflicts": [],
+    "unsupported": [],
+    "blockers": [
+     "DISCOUNT_REQUEST:-"
+    ],
+    "total": null
+   }
+  }
+ ]
+}
