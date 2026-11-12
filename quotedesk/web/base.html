@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Quote desk{% endblock %}</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">Quote desk</a>
+  <nav><a href="/">Enquiries</a><a href="/prices">Price list</a></nav>
+  <form method="post" action="/operator" class="who">
+    <label for="who">Operator</label>
+    <input id="who" name="name" value="{{ operator }}" maxlength="80" required>
+    <input type="hidden" name="next" value="{{ request.url.path }}">
+    <button>Set</button>
+  </form>
+</header>
+<main>
+{% if flash %}<p class="flash {{ flash_kind }}" role="status">{{ flash }}</p>{% endif %}
+{% block main %}{% endblock %}
+</main>
+</body>
+</html>

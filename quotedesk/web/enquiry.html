@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Enquiry {{ enq.id }} - Quote desk{% endblock %}
+{% macro source(v, anchor) %}
+  {% if v.source == "extracted" %}<a class="cite" href="#{{ anchor }}">&ldquo;{{ v.quote }}&rdquo;</a>
+  {% elif v.source == "form" %}<span class="cite manual">entered on the form</span>
+  {% else %}<span class="cite manual">typed by {{ v.by or "operator" }}</span>{% endif %}
+{% endmacro %}
+{% block main %}
+<p class="crumb"><a href="/">Enquiries</a> / {{ enq.id }}</p>
+<div class="titlebar">
+  <h1>Enquiry {{ enq.id }} &middot; quote {{ number }}</h1>
+  <span class="badge st-{{ status }}">{{ status_labels[status] }}</span>
+</div>
+
+<div class="split">
+<section class="pane" aria-label="Enquiry">
+  <h2>What the customer wrote</h2>
+  {% if enq.text %}
+  <p class="enquiry">{% for p in pieces %}{% if p.label %}<mark{% if p.anchor %} id="{{ p.anchor }}"{% endif %} title="{{ p.label }}">{{ p.text }}<sup>{{ p.label }}</sup></mark>{% else %}{{ p.text }}{% endif %}{% endfor %}</p>
+  <p class="hint">Highlighted words are where each value was read from ({{ enq.extractor }}). Anything not highlighted was not used.</p>
+  {% else %}<p class="empty">Entered by form; there is no message text.</p>{% endif %}
+
+  <h2>Reply draft</h2>
+  <textarea class="draft" rows="11" readonly aria-label="Reply draft">{{ draft }}</textarea>
+  <p class="hint">A draft only. This app cannot send email; copy the text into your own mailbox.</p>
+</section>
+
+<section class="pane" aria-label="Quote">
+  <h2>Checklist before a final quote</h2>
+  {% for c in priced.checklist %}
+  <article class="issue {{ 'sev-high' if c.blocking else 'sev-low' }}">
+    <p>{{ c.question }}</p>
+    {% if c.resolve == "provide" %}
+    <form method="post" action="/enquiries/{{ enq.id }}/field" class="row">
+      <input type="hidden" name="name" value="{{ c.key }}">
+      {% if c.key == "frequency" %}<select name="value" aria-label="{{ field_labels[c.key] }}">{% for q in frequencies %}<option value="{{ q }}">{{ q.replace("_", " ") }}</option>{% endfor %}</select>
+      {% else %}<input name="value" required aria-label="{{ field_labels.get(c.key, c.key) }}" placeholder="{{ field_labels.get(c.key, c.key) }}">{% endif %}
+      <button>Save answer</button>
+    </form>
+    {% elif c.resolve == "acknowledge" %}
+    <form method="post" action="/enquiries/{{ enq.id }}/acknowledge" class="row">
+      <input type="hidden" name="label" value="{{ c.key }}"><button>Leave it out of the quote</button>
+    </form>
+    {% elif c.resolve == "decide" %}
+    <form method="post" action="/enquiries/{{ enq.id }}/discount" class="row">
+      <input name="percent" placeholder="Percent to grant, e.g. 5" aria-label="Percent to grant">
+      <button name="decision" value="grant">Grant</button><button name="decision" value="decline">Decline</button>
+    </form>
+    {% endif %}
+  </article>
+  {% else %}<p class="empty">Nothing outstanding.</p>{% endfor %}
+
+  <h2>Requirements</h2>
+  <div class="scroll">
+  <table class="lines">
+    <thead><tr><th>Item</th><th>Value</th><th>Source</th></tr></thead>
+    <tbody>
+    {% for code, v in req.services.items() %}
+    <tr><td>Service</td><td>{{ pl.service(code).name if pl.service(code) else code }}</td>
+      <td>{{ source(v, "s-" ~ code) }}
+        <form method="post" action="/enquiries/{{ enq.id }}/service" class="inline-form"><input type="hidden" name="code" value="{{ code }}"><button name="include" value="no" class="small">Remove</button></form></td></tr>
+    {% endfor %}
+    {% for label, v in req.unsupported.items() %}
+    <tr><td>Not offered</td><td>{{ label }}{% if label in req.acknowledged %} (left out){% endif %}</td><td>{{ source(v, "u-" ~ loop.index0) }}</td></tr>
+    {% endfor %}
+    {% for name, label in field_labels.items() %}{% set v = req.fields.get(name) %}
+    <tr><td><label for="r-{{ name }}">{{ label }}</label></td>
+      <td><form method="post" action="/enquiries/{{ enq.id }}/field" class="row tight">
+        <input type="hidden" name="name" value="{{ name }}">
+        <input id="r-{{ name }}" name="value" value="{{ v.value if v else '' }}"{% if name in req.conflicts %} placeholder="conflict: {{ req.conflicts[name]|map(attribute='value')|join(' or ') }}"{% endif %}>
+        <button class="small">Save</button></form></td>
+      <td>{% if v %}{{ source(v, "f-" ~ name) }}{% elif name in req.conflicts %}<a class="cite missing" href="#f-{{ name }}">two values in the text</a>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if other_services %}
+  <form method="post" action="/enquiries/{{ enq.id }}/service" class="row">
+    <select name="code" aria-label="Service to add">{% for s in other_services %}<option value="{{ s.code }}">{{ s.name }}</option>{% endfor %}</select>
+    <button name="include" value="yes">Add service</button>
+  </form>
+  {% endif %}
+
+  <h2>Estimate <small>revision {{ quote.revision }}, price list version {{ quote.price_list.version }}, priced {{ quote.priced_on }}</small></h2>
+  {% if priced.blockers %}<p class="flash err">Incomplete. Only what can be priced is shown, and it cannot be approved until the checklist is settled.</p>{% endif %}
+  <div class="scroll">
+  <table class="lines">
+    <thead><tr><th>Description</th><th>Qty</th><th>Unit price</th><th class="num">Amount</th><th></th></tr></thead>
+    <tbody>
+    {% for ln in priced.lines %}
+    <tr>
+      <td>{{ ln.description }}{% if ln.manual %} <span class="cite manual">edited</span>{% endif %}</td>
+      {% if ln.kind == "service" %}
+      <td><input form="o-{{ loop.index }}" class="n" name="quantity" value="{{ ln.quantity.normalize()|string if ln.quantity == ln.quantity.to_integral() else ln.quantity }}" aria-label="Quantity"></td>
+      <td><input form="o-{{ loop.index }}" class="n" name="unit_price" value="{{ '%.2f'|format(ln.unit_price) }}" aria-label="Unit price"></td>
+      <td class="num">{{ "%.2f"|format(ln.amount) }}</td>
+      <td><form id="o-{{ loop.index }}" method="post" action="/enquiries/{{ enq.id }}/override"><input type="hidden" name="code" value="{{ ln.code }}"><button class="small">Update</button></form></td>
+      {% else %}
+      <td></td><td></td><td class="num">{{ "%.2f"|format(ln.amount) }}</td>
+      <td>{% if ln.kind == "custom" %}<form method="post" action="/enquiries/{{ enq.id }}/custom/remove"><input type="hidden" name="index" value="{{ custom_index[ln.code] }}"><button class="small">Remove</button></form>{% endif %}</td>
+      {% endif %}
+    </tr>
+    {% else %}<tr><td colspan="5" class="empty">Nothing can be priced yet.</td></tr>{% endfor %}
+    <tr class="sum"><td colspan="3">Total before GST</td><td class="num">{{ "%.2f"|format(priced.total_ex_gst) }}</td><td></td></tr>
+    <tr class="sum"><td colspan="3">GST</td><td class="num">{{ "%.2f"|format(priced.gst) }}</td><td></td></tr>
+    <tr class="sum total"><td colspan="3">Total {{ pl.currency }}</td><td class="num">{{ "%.2f"|format(priced.total) }}</td><td></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <form method="post" action="/enquiries/{{ enq.id }}/custom" class="row">
+    <input name="description" placeholder="Extra line, e.g. Balcony" aria-label="Extra line description" maxlength="200">
+    <input name="amount" class="n" placeholder="Amount" aria-label="Extra line amount">
+    <button>Add line</button>
+  </form>
+  <p class="hint">Amounts are worked out by code from the price list. Changing anything here makes a new revision and withdraws an earlier approval.</p>
+  {% if newer_list %}
+  <form method="post" action="/enquiries/{{ enq.id }}/reprice" class="row"><span class="hint">Price list version {{ newer_list }} has been published since this quote was priced.</span><button>Reprice with version {{ newer_list }}</button></form>
+  {% endif %}
+
+  <h2>Approval</h2>
+  {% if approved %}
+  <p class="flash ok">Revision {{ quote.revision }} was approved by {{ quote.approvals[-1].approved_by }} at {{ "%.2f"|format(quote.approvals[-1].total) }} {{ pl.currency }}. Nothing has been sent.</p>
+  <p><a class="button primary-link" href="/enquiries/{{ enq.id }}/quote.pdf">Download quote PDF</a></p>
+  {% else %}
+  <form method="post" action="/enquiries/{{ enq.id }}/approve" class="row">
+    <button class="primary"{% if not priced.can_approve %} disabled title="Settle the checklist first"{% endif %}>Approve revision {{ quote.revision }} at {{ "%.2f"|format(priced.total) }} {{ pl.currency }}</button>
+  </form>
+  <p class="hint">{% if priced.can_approve %}Approval unlocks the PDF. It does not send anything.{% else %}{{ priced.blockers|length }} checklist item(s) block approval.{% endif %}</p>
+  {% endif %}
+
+  <h2>History</h2>
+  <ul class="log">
+    {% for e in enq.events|reverse %}<li><time>{{ e.at.strftime("%Y-%m-%d %H:%M") }}</time> <b>{{ e.actor }}</b> {{ e.action.replace("_", " ") }}{% if e.detail %}: {{ e.detail }}{% endif %}</li>{% endfor %}
+  </ul>
+</section>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block main %}
+<form class="card" method="post" action="/enquiries">
+  <h2>New enquiry</h2>
+  <label for="text" class="hint">Paste the customer's email or message. You can also fill in what you already know below.</label>
+  <textarea id="text" name="text" rows="7" placeholder="Hi, we need our office cleaned weekly. It is 180 sqm..."></textarea>
+  <details>
+    <summary>Or enter details by form</summary>
+    <fieldset class="checks"><legend>Services</legend>
+      {% for s in price_list.services %}<label><input type="checkbox" name="service" value="{{ s.code }}"> {{ s.name }}</label>{% endfor %}
+    </fieldset>
+    <div class="fields two">
+      {% for f in form_fields %}
+      <label for="n-{{ f }}">{{ field_labels[f] }}</label>
+      {% if f == "frequency" %}<select id="n-{{ f }}" name="{{ f }}"><option value=""></option>{% for q in frequencies %}<option value="{{ q }}">{{ q.replace("_", " ") }}</option>{% endfor %}</select>
+      {% elif f == "weekend" %}<select id="n-{{ f }}" name="{{ f }}"><option value=""></option><option>yes</option><option>no</option></select>
+      {% else %}<input id="n-{{ f }}" name="{{ f }}">{% endif %}
+      {% endfor %}
+    </div>
+  </details>
+  <button class="primary">Read enquiry and price it</button>
+</form>
+
+<h2>Enquiries</h2>
+{% if rows %}
+<div class="scroll">
+<table>
+  <thead><tr><th>#</th><th>Received</th><th>From</th><th>Enquiry</th><th>Services</th><th class="num">Total</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <td><a href="/enquiries/{{ r.enq.id }}">{{ r.enq.id }}</a></td>
+    <td>{{ r.enq.received_at.strftime("%Y-%m-%d %H:%M") }}</td>
+    <td>{{ r.who }}</td>
+    <td><a href="/enquiries/{{ r.enq.id }}">{{ r.preview }}</a></td>
+    <td>{{ r.services|join(", ") }}</td>
+    <td class="num">{{ "%.2f"|format(r.enq.quote.total) if r.status in ("ready", "approved") else "" }}</td>
+    <td><span class="badge st-{{ r.status }}">{{ status_labels[r.status] }}</span></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p class="empty">No enquiries yet. Paste one above.</p>{% endif %}
+{% endblock %}

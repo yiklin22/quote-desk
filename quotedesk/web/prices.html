@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Price list - Quote desk{% endblock %}
+{% block main %}
+<h1>Price list, version {{ current.version }}</h1>
+{% if current.note %}<p class="hint">{{ current.note }}</p>{% endif %}
+<div class="scroll">
+<table>
+  <thead><tr><th>Service</th><th class="num">Base</th><th>Rates</th><th class="num">Minimum</th><th>Needs</th></tr></thead>
+  <tbody>
+  {% for s in pl.services %}
+  <tr><td>{{ s.name }}</td><td class="num">{{ "%.2f"|format(s.base) if s.base else "" }}</td>
+    <td>{% for f, r in s.rates.items() %}{{ "%.2f"|format(r) }} per {{ s.unit_labels.get(f, f) }}{{ ", " if not loop.last }}{% endfor %}</td>
+    <td class="num">{{ "%.2f"|format(s.minimum) if s.minimum is not none else "" }}</td>
+    <td>{% for f in s.requires %}{{ field_labels.get(f, f) }}{{ ", " if not loop.last }}{% endfor %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="hint">GST {{ "%.0f"|format(pl.gst_rate * 100) }}%. Weekend surcharge {{ "%.0f"|format(pl.weekend_surcharge_rate * 100) }}%. Discounts do not stack; the largest eligible one applies:
+{% for d in pl.discounts %}{{ d.label }} {{ d.percent.normalize() }}%{% if d.valid_until %} (until {{ d.valid_until }}){% endif %}{{ "; " if not loop.last }}{% endfor %}.</p>
+
+<h2>Publish a new version</h2>
+<form class="card" method="post" action="/prices">
+  <label for="data" class="hint">Edit the JSON and publish. Existing quotes keep the version they were priced with until someone reprices them.</label>
+  <textarea id="data" name="data" rows="18" spellcheck="false" class="code">{{ raw }}</textarea>
+  <input name="note" placeholder="What changed and why" aria-label="Note" maxlength="300">
+  <button class="primary">Publish version {{ current.version + 1 }}</button>
+</form>
+
+<h2>Versions</h2>
+<ul class="log">{% for v in versions %}<li><time>{{ v.created_at.strftime("%Y-%m-%d %H:%M") }}</time> <b>version {{ v.version }}</b> by {{ v.created_by }}{% if v.note %}: {{ v.note }}{% endif %}</li>{% endfor %}</ul>
+{% endblock %}
