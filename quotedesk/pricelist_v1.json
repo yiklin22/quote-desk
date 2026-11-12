@@ -1,0 +1,28 @@
+{
+  "business_name": "Brightside Cleaning (fictional)",
+  "currency": "AUD",
+  "gst_rate": "0.10",
+  "weekend_surcharge_rate": "0.20",
+  "quote_valid_days": 30,
+  "services": [
+    {"code": "office_clean", "name": "Office clean, per visit", "rates": {"area_sqm": "0.85"},
+     "unit_labels": {"area_sqm": "m2"}, "minimum": "120.00", "requires": ["area_sqm"]},
+    {"code": "end_of_lease", "name": "End-of-lease clean", "rates": {"area_sqm": "4.20", "bathrooms": "45.00"},
+     "unit_labels": {"area_sqm": "m2", "bathrooms": "bathrooms"}, "minimum": "280.00",
+     "requires": ["area_sqm", "bathrooms"]},
+    {"code": "house_clean", "name": "House clean, per visit", "base": "90.00",
+     "rates": {"bedrooms": "25.00", "bathrooms": "30.00"},
+     "unit_labels": {"bedrooms": "bedrooms", "bathrooms": "bathrooms"}, "requires": ["bedrooms", "bathrooms"]},
+    {"code": "carpet_steam", "name": "Carpet steam clean", "rates": {"carpet_rooms": "38.00"},
+     "unit_labels": {"carpet_rooms": "rooms"}, "minimum": "76.00", "requires": ["carpet_rooms"]},
+    {"code": "window_clean", "name": "Window clean", "rates": {"windows": "9.50"},
+     "unit_labels": {"windows": "windows"}, "requires": ["windows"]},
+    {"code": "oven_clean", "name": "Oven clean", "base": "79.00"}
+  ],
+  "discounts": [
+    {"code": "weekly", "label": "Weekly service discount", "percent": "15", "kind": "frequency", "when": "weekly"},
+    {"code": "fortnightly", "label": "Fortnightly service discount", "percent": "10", "kind": "frequency", "when": "fortnightly"},
+    {"code": "welcome10", "label": "Promo code WELCOME10", "percent": "10", "kind": "promo", "when": "WELCOME10", "valid_until": "2026-12-31"},
+    {"code": "pensioner", "label": "Pensioner concession", "percent": "5", "kind": "concession", "when": "pensioner"}
+  ]
+}
