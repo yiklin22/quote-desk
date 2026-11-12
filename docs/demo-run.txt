@@ -1,0 +1,31 @@
+id   category       status           total  expected  checklist
+E01  complete       ready           143.06    143.06  0 blocking
+E02  complete       ready           537.90    537.90  0 blocking
+E03  complete       ready           222.75    222.75  0 blocking
+E04  complete       ready           254.10    254.10  0 blocking
+E05  complete       ready           300.96    300.96  0 blocking
+E06  complete       ready           132.00    132.00  0 blocking
+E07  complete       ready           291.50    291.50  0 blocking
+E08  complete       ready           452.10    452.10  0 blocking
+E09  missing_info   needs_info           -         -  1 blocking
+E10  missing_info   needs_info           -         -  1 blocking
+E11  missing_info   needs_info           -         -  2 blocking
+E12  unsupported    cannot_quote         -         -  2 blocking
+E13  unsupported    needs_info           -         -  1 blocking
+E14  unsupported    needs_info           -         -  1 blocking
+E15  contradiction  needs_info           -         -  1 blocking
+E16  contradiction  needs_info           -         -  1 blocking
+E17  contradiction  needs_info           -         -  1 blocking
+E18  discount       ready           193.05    193.05  0 blocking
+E19  discount       ready           238.43    238.43  0 blocking
+E20  discount       needs_info           -         -  1 blocking
+
+walk-through with E13 (office clean plus pest control, which is not offered):
+  PDF before approval:      HTTP 409
+  after leaving it out:      ready 187.00
+  after approval:            approved
+  PDF after approval:       HTTP 200 2707 bytes
+  after editing the area:    ready 205.70
+  PDF after the edit:       HTTP 409
+
+fixtures as expected: 20/20
