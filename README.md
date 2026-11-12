@@ -11,11 +11,11 @@ and milestone 8 added login, per-account data, deletion, input limits and
 usage caps. It runs on this machine only and is not hosted anywhere. Two
 things in the brief are not done, and both need something I do not have:**
 
-- **No model is called anywhere.** Enquiries are read by a pattern-based
-  extractor, and reply wording comes from fixed templates. The two gates a
-  model's output would have to pass are built and tested (see
-  [Where a model plugs in](#where-a-model-plugs-in)), but no model has run.
-  That needs an API key and a spending decision.
+- **No model has been called yet.** Milestone 9 added a model step that reads
+  the enquiry (see [The model step](#the-model-step)). It is off by default
+  and has only been tested with a stand-in client, because there is no API key
+  on this machine. Until it is switched on, enquiries are read by a
+  pattern-based extractor. Reply wording still comes from fixed templates.
 - **The price list is invented.** The brief says to get one real operator's
   pricing rules. `pricelist_v1.json` is a placeholder I made up so the rest
   could be built. It is labelled fictional in the app and on the PDF.
@@ -52,7 +52,7 @@ its own PostgreSQL from the `pgserver` package in `./.pgdata`.
 uv sync
 uv run uvicorn quotedesk.app:app --port 8812      # open http://127.0.0.1:8812 and create an account
 uv run python scripts/demo.py http://127.0.0.1:8812   # two throwaway accounts, deleted at the end
-uv run pytest                                     # 90 tests, on a real PostgreSQL
+uv run pytest                                     # 102 tests, on a real PostgreSQL
 ```
 
 To try it by hand, create an account and press **Load the sample enquiries**
@@ -89,7 +89,7 @@ email. The layout is one column on a phone, two from 1000 px.
 |---|---|
 | Identical inputs reproduce totals | `test_domain.py::test_identical_inputs_reproduce_lines_totals_and_hash`, `test_service.py::test_same_enquiry_twice_gives_the_same_lines_and_total` |
 | Edits invalidate a previous approval | `test_service.py::test_any_edit_invalidates_the_approval` (five kinds of edit), `test_changing_a_value_back_does_not_restore_the_approval` |
-| Nothing sends automatically | `test_service.py::test_the_code_has_no_way_to_send_anything` (the package imports no mail, HTTP-client or model library), `test_web.py::test_enquiry_to_pdf_flow` |
+| Nothing sends automatically | `test_service.py::test_the_code_has_no_way_to_send_anything` (no module imports a mail or HTTP-client library; only `model.py` may import the Anthropic SDK), `test_web.py::test_enquiry_to_pdf_flow` |
 | Missing information blocks a final quote | `test_service.py::test_missing_information_blocks_approval_and_pdf_until_provided` |
 | Code calculates prices | `test_domain.py::test_fixture_matches_hand_worked_expectation` (20 cases) |
 | Every extracted value quotes the enquiry | `test_domain.py::test_every_extracted_value_quotes_the_enquiry`, `test_verify_drops_values_whose_quote_is_not_in_the_text` |
@@ -124,7 +124,10 @@ check, the daily cap), and each time at least one test failed.
   quote records the version and the date it was priced with (promo expiry
   depends on the date), so it can be reproduced later.
 - **There is no send function.** Not sending is not a setting. The package has
-  no mail or HTTP client, and a test fails if one is imported.
+  no mail or HTTP client, and a test fails if one is imported. The one
+  outbound call is in `model.py`: when the model step is switched on, the
+  enquiry text goes to the Anthropic API to be read. Nothing goes to the
+  customer.
 - **The account is checked twice.** Enquiries and price lists carry an
   `account_id`; quotes, lines, approvals and history hang off their enquiry.
   The web layer answers 404 for another account's enquiry, the same as for one
@@ -143,26 +146,55 @@ check, the daily cap), and each time at least one test failed.
   `SameSite=Lax`.
 - **The daily cap is the future spending cap.** Every new enquiry is counted
   per account per day, and deleting does not give the count back. One enquiry
-  is one read today; when a model reads enquiries, the same counter bounds
-  what an account can spend. An enquiry refused for its content uses none.
+  is one read. Model calls have their own counter and cap
+  (`MAX_MODEL_CALLS_PER_DAY`, 50 per account); past it, enquiries are read by
+  patterns. An enquiry refused for its content uses none.
 - **Evidence is checked by code.** `verify` drops any extracted value whose
   quoted words are not in the enquiry at the stated position, or whose value
   is not sane for the field, and tells the operator what was dropped.
 
-## Where a model plugs in
+## The model step
 
-Nothing below has been run against a model.
+**Not yet run against a real model.** The 12 tests in `tests/test_model.py`
+use a stand-in client that returns fixed output. The request has never been
+sent to the API, so its exact shape is unconfirmed until the pilot below runs.
 
-- **Reading the enquiry.** Anything with `extract(text) -> Requirements`
-  satisfies the `Extractor` protocol. Its output goes through `verify`, so a
-  value the model invented, or a real quote with a wrong number, never reaches
-  pricing. The test feeds `verify` three such fabricated values.
-- **Wording the reply.** `amounts_ok(text, priced)` rejects a draft containing
-  any money amount the pricing code did not produce. A model draft that fails
-  falls back to the template.
+- **What it does.** With `QUOTEDESK_MODEL_EXTRACTION=1` and
+  `ANTHROPIC_API_KEY` in the server's environment, a pasted enquiry is read by
+  Claude (`claude-opus-5-5`, low effort, structured output) instead of the
+  patterns. The call is made on the server; the browser never sees the key.
+- **What the model may say.** A list of items: a service code, a field value,
+  a request that is not offered, or a discount request, each with the words it
+  was read from. No offsets and no prices.
+- **What code checks.** `to_requirements` looks each quote up in the enquiry
+  itself. An item is dropped, and listed for the operator, when its words are
+  not in the enquiry, when a number is not in the words quoted, or when the
+  service or field does not exist. Then `verify` runs as for the patterns.
+- **When it fails.** A refusal, a timeout, an API error or a cut-off answer
+  falls back to the patterns, and the enquiry's history says so. If a safety
+  classifier declines a request, the API is asked to rerun it on another model
+  (`fallbacks="default"`) before the app gives up on the model.
+- **What it costs.** Not measured. `scripts/model_pilot.py` reads ten fixture
+  enquiries, prints tokens and estimated dollars per call, and stops at a
+  spend limit (default $0.50):
 
-The first measurement to make with a key: on real enquiries, how many values
-does the model get right that the patterns miss, and how many does `verify`
+  ```bash
+  echo 'ANTHROPIC_API_KEY=...' > .env               # .env is git-ignored
+  uv run --env-file .env python scripts/model_pilot.py
+  QUOTEDESK_MODEL_EXTRACTION=1 uv run --env-file .env uvicorn quotedesk.app:app --port 8812
+  ```
+
+Known limits: the model call runs inside the database transaction that holds
+the account's cap lock, so one account's enquiries queue behind a slow call
+(up to the 30-second timeout). Enquiry text is customer data leaving the
+machine; an operator would need to agree to that.
+
+**Wording the reply is not done.** `amounts_ok(text, priced)` rejects a draft
+containing any money amount the pricing code did not produce, and is tested,
+but no model drafts replies yet.
+
+The first measurement to make with real enquiries: how many values does the
+model get right that the patterns miss, and how many does the evidence check
 have to drop.
 
 ## Dependencies checked before use
@@ -171,7 +203,9 @@ Pinned in `uv.lock`: fastapi 0.162.5 (MIT), uvicorn 0.54.0 (BSD-3-Clause),
 sqlalchemy 2.1.8 (MIT), psycopg 3.3.9 (LGPL-3.0-only, used unmodified as a
 library), pydantic 2.14.3 (MIT), jinja2 3.1.6 (BSD), python-multipart 0.0.33
 (Apache-2.0), reportlab 5.1.0 (BSD) for the PDF, pgserver 0.1.4 (Apache-2.0)
-for a bundled PostgreSQL. No existing quoting project is reused; the two
+for a bundled PostgreSQL, anthropic 2.8.0 (Apache-2.0 per its package
+metadata) for the model step; it installs and imports, but no sample output
+exists until a key is available. No existing quoting project is reused; the two
 invoicing applications in the brief (InvoiceShelf, AGPL-3.0; Invoice Ninja,
 source-available) were not needed for this scope and bring license duties.
 
@@ -219,9 +253,8 @@ address and the HTTPS scheme are the visitor's, not the proxy's.
 
 1. Get one operator's price list and 30 of their past enquiries with the
    quotes they actually sent; replace the fixtures.
-2. Add a model extractor and drafter behind the two gates, and measure them.
-   This needs an API key and a spending limit; the per-account daily cap is
-   already in place.
+2. Run the model pilot with an API key, then measure the model against the
+   patterns on real enquiries. Add a model drafter behind `amounts_ok`.
 3. Put it on a host with HTTPS and an invite code. This needs a choice of
    host and a PostgreSQL there; nothing in the code depends on which.
 4. Password reset and email verification, which need a way to send email.
@@ -234,6 +267,7 @@ address and the HTTPS scheme are the visitor's, not the proxy's.
 quotedesk/
   domain.py          requirements, price list, checklist, pricing, inputs hash (pure)
   extraction.py      pattern extractor and the evidence gate
+  model.py           model reading of an enquiry; the only outbound call
   drafting.py        reply templates and the amounts gate
   pdf.py             approved quote -> PDF
   models.py          tables: account, enquiry, price list version, quote, lines, approval, event
@@ -244,5 +278,6 @@ quotedesk/
   pricelist_v1.json  invented placeholder prices
 fixtures/enquiries.json   20 enquiries with hand-worked expectations
 scripts/demo.py           drives a running server through the flow with two accounts
-tests/                    90 tests
+scripts/model_pilot.py    reads ten fixtures with the real model; spends money, has a limit
+tests/                    102 tests
 ```

@@ -17,7 +17,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from . import config
+from . import config, model
 
 from .domain import (FIELD_LABELS, Adjustments, CustomLine, Override, PriceList, Priced, Requirements, Value,
                      inputs_hash, price_quote)
@@ -64,7 +64,9 @@ def usage(session: Session, account_id: int) -> dict:
             "enquiries_today": _used_today(session, account_id, "enquiries"),
             "max_enquiries_per_day": config.MAX_ENQUIRIES_PER_DAY,
             "price_lists_today": _used_today(session, account_id, "price_lists"),
-            "max_price_lists_per_day": config.MAX_PRICE_LISTS_PER_DAY}
+            "max_price_lists_per_day": config.MAX_PRICE_LISTS_PER_DAY,
+            "model_on": model.enabled(), "model_calls_today": _used_today(session, account_id, "model_calls"),
+            "max_model_calls_per_day": config.MAX_MODEL_CALLS_PER_DAY}
 
 
 # --- price lists -------------------------------------------------------------
@@ -214,8 +216,21 @@ def create_enquiry(session: Session, account_id: int, text: str, actor: str, for
     if _used_today(session, account_id, "enquiries") >= config.MAX_ENQUIRIES_PER_DAY:
         raise QuoteError(f"The limit of {config.MAX_ENQUIRIES_PER_DAY} new enquiries a day has been reached. "
                          f"Try again tomorrow.")
-    extractor = extractor or RuleExtractor()
-    req = extractor.extract(text) if text else Requirements()
+    note = ""
+    if extractor is None:
+        extractor = RuleExtractor()
+        if model.enabled() and text:
+            if _used_today(session, account_id, "model_calls") >= config.MAX_MODEL_CALLS_PER_DAY:
+                note = "; model daily limit reached, read by patterns"
+            else:
+                _add_usage(session, account_id, "model_calls")      # counted before the call: a failed call can cost too
+                extractor = model.ModelExtractor({s.code: s.name for s in as_price_list(pl_row).services})
+    try:
+        req = extractor.extract(text) if text else Requirements()
+    except model.ModelError as exc:
+        note = f"; model reading failed ({exc}), read by patterns"
+        extractor = RuleExtractor()
+        req = extractor.extract(text)
     fields, services, conflicts = dict(req.fields), dict(req.services), dict(req.conflicts)
     for code in [c.strip() for c in form.pop("service", "").split(",") if c.strip()]:
         if as_price_list(pl_row).service(code) is None:
@@ -230,7 +245,7 @@ def create_enquiry(session: Session, account_id: int, text: str, actor: str, for
                   extractor=type(extractor).__name__, requirements={})
     session.add(enq)
     _add_usage(session, account_id, "enquiries")
-    _log(enq, actor, "enquiry_received", f"{len(text)} characters, {len(form)} form value(s)")
+    _log(enq, actor, "enquiry_received", f"{len(text)} characters, {len(form)} form value(s){note}")
     _refresh(session, enq, req, Adjustments(), actor, price_list=pl_row, today=today)
     return enq
 

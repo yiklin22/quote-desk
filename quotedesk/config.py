@@ -18,6 +18,14 @@ MAX_ENQUIRIES = _int("MAX_ENQUIRIES", 500)                      # enquiries stor
 MAX_ENQUIRIES_PER_DAY = _int("MAX_ENQUIRIES_PER_DAY", 100)      # new enquiries read per UTC day
 MAX_PRICE_LISTS_PER_DAY = _int("MAX_PRICE_LISTS_PER_DAY", 20)   # price list versions published per UTC day
 
+# Model reading of enquiries. Off unless QUOTEDESK_MODEL_EXTRACTION=1; needs ANTHROPIC_API_KEY in the
+# server's environment. When on, the enquiry text is sent to the Anthropic API.
+MODEL_EXTRACTION = os.environ.get("QUOTEDESK_MODEL_EXTRACTION", "") == "1"
+MODEL = os.environ.get("QUOTEDESK_MODEL", "claude-opus-5-5")
+MODEL_EFFORT = os.environ.get("QUOTEDESK_MODEL_EFFORT", "low")
+MODEL_TIMEOUT_SECONDS = _int("MODEL_TIMEOUT_SECONDS", 30)
+MAX_MODEL_CALLS_PER_DAY = _int("MAX_MODEL_CALLS_PER_DAY", 50)   # per account, per UTC day
+
 # Accounts
 MAX_ACCOUNTS = _int("MAX_ACCOUNTS", 25)
 INVITE_CODE = os.environ.get("QUOTEDESK_INVITE_CODE", "")       # when set, signing up needs it

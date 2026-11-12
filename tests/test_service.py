@@ -169,11 +169,13 @@ def test_stored_lines_equal_recomputed_lines(session):
 
 def test_the_code_has_no_way_to_send_anything():
     """Nothing sends automatically, because nothing can send at all."""
-    banned = {"smtplib", "email", "imaplib", "poplib", "httpx", "requests", "aiohttp", "socket", "boto3",
+    banned = {"smtplib", "email", "imaplib", "poplib", "httpx", "httpx2", "requests", "aiohttp", "socket", "boto3",
               "twilio", "sendgrid", "anthropic", "openai", "urllib.request", "http.client", "subprocess"}
     for path in (ROOT / "quotedesk").glob("*.py"):
+        # model.py may call the Anthropic API to read an enquiry. That is the one outbound call in the package.
+        banned_here = banned - {"anthropic"} if path.name == "model.py" else banned
         for node in ast.walk(ast.parse(path.read_text())):
             names = [a.name for a in node.names] if isinstance(node, ast.Import) else \
                 [node.module or ""] if isinstance(node, ast.ImportFrom) and node.level == 0 else []
             for name in names:
-                assert name not in banned and name.split(".")[0] not in banned, f"{path.name} imports {name}"
+                assert name not in banned_here and name.split(".")[0] not in banned_here, f"{path.name} imports {name}"
