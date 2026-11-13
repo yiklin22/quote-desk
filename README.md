@@ -11,11 +11,12 @@ and milestone 8 added login, per-account data, deletion, input limits and
 usage caps. It runs on this machine only and is not hosted anywhere. Two
 things in the brief are not done, and both need something I do not have:**
 
-- **No model has been called yet.** Milestone 9 added a model step that reads
-  the enquiry (see [The model step](#the-model-step)). It is off by default
-  and has only been tested with a stand-in client, because there is no API key
-  on this machine. Until it is switched on, enquiries are read by a
-  pattern-based extractor. Reply wording still comes from fixed templates.
+- **The model has only read invented enquiries.** Milestone 9 added a model
+  step that reads the enquiry (see [The model step](#the-model-step)). It is
+  off by default. A pilot on 13 November 2026 read ten of the fixture
+  enquiries correctly; no real customer email has been through it. Until it
+  is switched on, enquiries are read by a pattern-based extractor. Reply
+  wording still comes from fixed templates.
 - **The price list is invented.** The brief says to get one real operator's
   pricing rules. `pricelist_v1.json` is a placeholder I made up so the rest
   could be built. It is labelled fictional in the app and on the PDF.
@@ -155,9 +156,12 @@ check, the daily cap), and each time at least one test failed.
 
 ## The model step
 
-**Not yet run against a real model.** The 12 tests in `tests/test_model.py`
-use a stand-in client that returns fixed output. The request has never been
-sent to the API, so its exact shape is unconfirmed until the pilot below runs.
+**Run against the real model once, on invented enquiries only.** The 12 tests
+in `tests/test_model.py` use a stand-in client that returns fixed output. The
+pilot below was run on 13 November 2026 with `claude-opus-5-5` at low effort:
+all ten fixture enquiries were read as the fixtures expect, and the evidence
+check dropped nothing. The patterns already read these ten correctly, so this
+shows the step works end to end, not that the model is better on real email.
 
 - **What it does.** With `QUOTEDESK_MODEL_EXTRACTION=1` and
   `ANTHROPIC_API_KEY` in the server's environment, a pasted enquiry is read by
@@ -174,9 +178,12 @@ sent to the API, so its exact shape is unconfirmed until the pilot below runs.
   falls back to the patterns, and the enquiry's history says so. If a safety
   classifier declines a request, the API is asked to rerun it on another model
   (`fallbacks="default"`) before the app gives up on the model.
-- **What it costs.** Not measured. `scripts/model_pilot.py` reads ten fixture
-  enquiries, prints tokens and estimated dollars per call, and stops at a
-  spend limit (default $0.50):
+- **What it costs.** In the pilot, about $0.009 per enquiry (about 1,300
+  tokens in and 120 to 240 out) and 2 to 6 seconds per call; ten enquiries
+  came to an estimated $0.088. These are estimates from token counts at list
+  price, not a bill. `scripts/model_pilot.py` reads ten fixture enquiries,
+  prints tokens and estimated dollars per call, and stops at a spend limit
+  (default $0.50):
 
   ```bash
   echo 'ANTHROPIC_API_KEY=...' > .env               # .env is git-ignored
