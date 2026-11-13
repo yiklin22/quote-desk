@@ -6,6 +6,7 @@ The outputs are a PDF and a text draft for the operator to send themselves.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -21,9 +22,10 @@ from . import config, model
 
 from .domain import (FIELD_LABELS, Adjustments, CustomLine, Override, PriceList, Priced, Requirements, Value,
                      inputs_hash, price_quote)
-from .drafting import draft_reply
+from .drafting import NOTHING_YET, draft_reply, rewrite_problems
 from .extraction import Extractor, RuleExtractor, _valid
-from .models import Account, Approval, Enquiry, Event, PriceListVersion, Quote, QuoteLine, UsageCounter
+from .models import (Account, Approval, Enquiry, Event, PriceListVersion, Quote, QuoteLine, ReplyDraft,
+                     UsageCounter)
 from .pdf import render_quote_pdf
 
 EDITABLE_FIELDS = [f for f in FIELD_LABELS]
@@ -436,9 +438,59 @@ def quote_pdf(session: Session, account_id: int, enquiry_id: int, actor: str) ->
     return number, data
 
 
-def reply_draft(enq: Enquiry) -> str:
+def _standard_reply(enq: Enquiry) -> str:
     return draft_reply(as_price_list(enq.quote.price_list), requirements(enq), priced(enq),
                        is_approved(enq.quote))
+
+
+def _reply_hash(standard: str) -> str:
+    return hashlib.sha256(standard.encode()).hexdigest()
+
+
+def reply_draft(enq: Enquiry) -> tuple[str, bool]:
+    """The reply to show, and whether a model worded it. A model's wording
+    is used only while the standard reply it was written from is unchanged."""
+    standard = _standard_reply(enq)
+    if enq.reply and enq.reply.source_hash == _reply_hash(standard):
+        return enq.reply.text, True
+    return standard, False
+
+
+def reword_reply(session: Session, account_id: int, enquiry_id: int, actor: str) -> None:
+    """Ask the model to reword the standard reply. Its wording is kept only
+    if every figure and question survived; otherwise the standard reply stays."""
+    enq = get_enquiry(session, account_id, enquiry_id)
+    standard = _standard_reply(enq)
+    if not model.enabled():
+        raise QuoteError("The model step is switched off.")
+    if standard == NOTHING_YET:
+        raise QuoteError("There is no customer wording to reword yet.")
+    _lock_account(session, account_id)
+    if _used_today(session, account_id, "model_calls") >= config.MAX_MODEL_CALLS_PER_DAY:
+        raise QuoteError("Today's model limit is reached. The standard wording stays.")
+    _add_usage(session, account_id, "model_calls")
+    try:
+        text = model.ReplyWriter().write(enq.text, standard)
+        problems = rewrite_problems(text, standard, priced(enq))
+    except model.ModelError as exc:
+        problems = [f"the model could not be used ({exc})"]
+    if problems:
+        _log(enq, actor, "reply_reword_rejected", "; ".join(problems))
+        session.commit()                    # the call is counted and recorded even though nothing changed
+        raise QuoteError(f"The model's wording was not used: {'; '.join(problems)}. The standard wording stays.")
+    if enq.reply is None:
+        enq.reply = ReplyDraft()
+    enq.reply.source_hash, enq.reply.text, enq.reply.model = _reply_hash(standard), text, config.MODEL
+    _log(enq, actor, "reply_reworded", config.MODEL)
+    session.commit()
+
+
+def use_standard_reply(session: Session, account_id: int, enquiry_id: int, actor: str) -> None:
+    enq = get_enquiry(session, account_id, enquiry_id)
+    if enq.reply is not None:
+        enq.reply = None
+        _log(enq, actor, "reply_standard_restored")
+        session.commit()
 
 
 # --- deletion and sample data ------------------------------------------------

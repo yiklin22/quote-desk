@@ -15,8 +15,9 @@ things in the brief are not done, and both need something I do not have:**
   step that reads the enquiry (see [The model step](#the-model-step)). It is
   off by default. A pilot on 13 November 2026 read ten of the fixture
   enquiries correctly; no real customer email has been through it. Until it
-  is switched on, enquiries are read by a pattern-based extractor. Reply
-  wording still comes from fixed templates.
+  is switched on, enquiries are read by a pattern-based extractor. Milestone
+  10 added a button that has the model reword the reply; the templates stay
+  the default and the fallback.
 - **The price list is invented.** The brief says to get one real operator's
   pricing rules. `pricelist_v1.json` is a placeholder I made up so the rest
   could be built. It is labelled fictional in the app and on the PDF.
@@ -53,7 +54,7 @@ its own PostgreSQL from the `pgserver` package in `./.pgdata`.
 uv sync
 uv run uvicorn quotedesk.app:app --port 8812      # open http://127.0.0.1:8812 and create an account
 uv run python scripts/demo.py http://127.0.0.1:8812   # two throwaway accounts, deleted at the end
-uv run pytest                                     # 102 tests, on a real PostgreSQL
+uv run pytest                                     # 117 tests, on a real PostgreSQL
 ```
 
 To try it by hand, create an account and press **Load the sample enquiries**
@@ -196,9 +197,35 @@ the account's cap lock, so one account's enquiries queue behind a slow call
 (up to the 30-second timeout). Enquiry text is customer data leaving the
 machine; an operator would need to agree to that.
 
-**Wording the reply is not done.** `amounts_ok(text, priced)` rejects a draft
-containing any money amount the pricing code did not produce, and is tested,
-but no model drafts replies yet.
+### Rewording the reply
+
+The reply draft is written by templates from the computed figures, as before.
+With the model step on, the enquiry page has a **Reword with the model**
+button. It sends the enquiry and the standard reply to the model and asks for
+the same reply in friendlier words. Nothing is reworded unless the operator
+presses the button, and the result is still only text to copy.
+
+- **What code checks** (`drafting.rewrite_problems`): every dollar amount is
+  one the pricing code produced; every amount and the validity period from
+  the standard reply are still there; no number appears that was not in the
+  standard reply; each question for the customer is word for word; the text
+  is not empty or over 2,000 characters. If any check fails, the standard
+  reply stays and the history records why.
+- **What code cannot check:** the words themselves. In the pilot the model
+  added "sounds very manageable" and, on another run, "sounds like a great
+  fit for us" about a customer's office. Neither is a figure, so neither is
+  caught. The page labels model wording and tells the operator to read it.
+  A promise written without digits ("we can start tomorrow") would also pass.
+- **When the quote changes:** the model's wording is stored with a hash of
+  the standard reply it was written from, and shown only while that reply is
+  unchanged. An edit that withdraws the approval withdraws the wording too.
+- **Pilot, 13 November 2026:** `scripts/reply_pilot.py` reworded four fixture
+  replies (a quote, a missing value, a service not offered, a contradiction).
+  All four passed the checks; about $0.006 and 3 seconds each, $0.025
+  estimated in total. Whether the wording is better than the template is a
+  judgement nobody but me has made, on four invented enquiries.
+- **One switch for both.** `QUOTEDESK_MODEL_EXTRACTION=1` turns on reading
+  and rewording, and both count against the same daily cap.
 
 The first measurement to make with real enquiries: how many values does the
 model get right that the patterns miss, and how many does the evidence check
@@ -274,10 +301,10 @@ address and the HTTPS scheme are the visitor's, not the proxy's.
 quotedesk/
   domain.py          requirements, price list, checklist, pricing, inputs hash (pure)
   extraction.py      pattern extractor and the evidence gate
-  model.py           model reading of an enquiry; the only outbound call
-  drafting.py        reply templates and the amounts gate
+  model.py           model reading of an enquiry and rewording of a reply; the only outbound calls
+  drafting.py        reply templates and the checks a reworded reply must pass
   pdf.py             approved quote -> PDF
-  models.py          tables: account, enquiry, price list version, quote, lines, approval, event
+  models.py          tables: account, enquiry, price list version, quote, lines, approval, model reply, event
   auth.py            passwords, login sessions, login throttling
   config.py          limits and caps
   service.py         use cases, all per account
@@ -286,5 +313,6 @@ quotedesk/
 fixtures/enquiries.json   20 enquiries with hand-worked expectations
 scripts/demo.py           drives a running server through the flow with two accounts
 scripts/model_pilot.py    reads ten fixtures with the real model; spends money, has a limit
-tests/                    102 tests
+scripts/reply_pilot.py    rewords four fixture replies with the real model; spends money, has a limit
+tests/                    117 tests
 ```

@@ -22,7 +22,13 @@
 
   <h2>Reply draft</h2>
   <textarea class="draft" rows="11" readonly aria-label="Reply draft">{{ draft }}</textarea>
-  <p class="hint">A draft only. This app cannot send email; copy the text into your own mailbox.</p>
+  <p class="hint">{% if draft_by_model %}Worded by a model from the standard reply. Code checked the amounts, numbers and questions, not the rest: read it before you use it. {% endif %}A draft only. This app cannot send email; copy the text into your own mailbox.</p>
+  {% if can_reword or draft_by_model %}
+  <div class="row">
+    <form method="post" action="/enquiries/{{ enq.id }}/reword" class="inline-form"><button class="small">Reword with the model</button></form>
+    {% if draft_by_model %}<form method="post" action="/enquiries/{{ enq.id }}/standard-wording" class="inline-form"><button class="small">Use the standard wording</button></form>{% endif %}
+  </div>
+  {% endif %}
 </section>
 
 <section class="pane" aria-label="Quote">

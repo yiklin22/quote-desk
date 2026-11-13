@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from . import auth, config, service
 from .db import get_engine, get_session
 from .domain import FIELD_LABELS, FREQUENCIES
+from .drafting import NOTHING_YET
 from .models import Account, Enquiry, PriceListVersion
 
 HERE = Path(__file__).parent
@@ -219,11 +220,13 @@ def enquiry_page(request: Request, enquiry_id: int,
     latest = service.current_price_list(session, account.id)
     adj = service.adjustments(quote)
     custom_index = {f"custom.{n}": n - 1 for n in range(1, len(adj.custom) + 1)}
+    draft, draft_by_model = service.reply_draft(enq)
     return page(request, "enquiry.html", enq=enq, req=req, priced=result, quote=quote, pl=pl,
                 status=service.status(enq), approved=service.is_approved(quote),
                 pieces=highlighted(enq.text, req), number=service.quote_number(quote),
                 newer_list=latest.version if latest.id != quote.price_list_id else None,
-                overrides=adj.overrides, custom_index=custom_index, draft=service.reply_draft(enq),
+                overrides=adj.overrides, custom_index=custom_index, draft=draft, draft_by_model=draft_by_model,
+                can_reword=config.MODEL_EXTRACTION and draft != NOTHING_YET,
                 other_services=[s for s in pl.services if s.code not in req.services])
 
 
@@ -303,6 +306,19 @@ def approve(request: Request, enquiry_id: int,
         account: Account = Depends(current_account), session: Session = Depends(get_session)):
     return act(session, account, enquiry_id, "Quote approved. Nothing has been sent; download the PDF and send it yourself.",
                service.approve, account.name)
+
+
+@app.post("/enquiries/{enquiry_id}/reword")
+def reword(request: Request, enquiry_id: int,
+        account: Account = Depends(current_account), session: Session = Depends(get_session)):
+    return act(session, account, enquiry_id, "Reworded by the model. Figures and questions were checked; read the rest.",
+               service.reword_reply, account.name)
+
+
+@app.post("/enquiries/{enquiry_id}/standard-wording")
+def standard_wording(request: Request, enquiry_id: int,
+        account: Account = Depends(current_account), session: Session = Depends(get_session)):
+    return act(session, account, enquiry_id, "Back to the standard wording.", service.use_standard_reply, account.name)
 
 
 @app.get("/prices")

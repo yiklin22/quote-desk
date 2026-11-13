@@ -85,6 +85,7 @@ class Enquiry(Base):
     requirements: Mapped[dict] = mapped_column(JSON)            # domain.Requirements
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     quote: Mapped[Quote | None] = relationship(back_populates="enquiry", cascade="all, delete-orphan", uselist=False)
+    reply: Mapped[ReplyDraft | None] = relationship(cascade="all, delete-orphan", uselist=False)
     events: Mapped[list[Event]] = relationship(back_populates="enquiry", cascade="all, delete-orphan", order_by="Event.id")
 
 
@@ -138,6 +139,18 @@ class Approval(Base):
     approved_by: Mapped[str] = mapped_column(String(80))
     approved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     quote: Mapped[Quote] = relationship(back_populates="approvals")
+
+
+class ReplyDraft(Base):
+    """A model's wording of the reply. Shown only while the standard reply
+    it was written from is unchanged, so any edit to the quote retires it."""
+    __tablename__ = "reply_drafts"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    enquiry_id: Mapped[int] = mapped_column(ForeignKey("enquiries.id", ondelete="CASCADE"), unique=True)
+    source_hash: Mapped[str] = mapped_column(String(64))        # sha256 of the standard reply it reworded
+    text: Mapped[str] = mapped_column(Text)
+    model: Mapped[str] = mapped_column(String(60))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
 class Event(Base):

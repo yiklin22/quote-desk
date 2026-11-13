@@ -12,7 +12,7 @@
     <tr><td>Enquiries stored</td><td class="num">{{ usage.enquiries }}</td><td class="num">{{ usage.max_enquiries }}</td></tr>
     <tr><td>New enquiries today (UTC)</td><td class="num">{{ usage.enquiries_today }}</td><td class="num">{{ usage.max_enquiries_per_day }}</td></tr>
     <tr><td>Price list versions published today (UTC)</td><td class="num">{{ usage.price_lists_today }}</td><td class="num">{{ usage.max_price_lists_per_day }}</td></tr>
-    {% if usage.model_on %}<tr><td>Enquiries read by the model today (UTC)</td><td class="num">{{ usage.model_calls_today }}</td><td class="num">{{ usage.max_model_calls_per_day }}</td></tr>{% endif %}
+    {% if usage.model_on %}<tr><td>Model calls today (UTC): enquiries read and replies reworded</td><td class="num">{{ usage.model_calls_today }}</td><td class="num">{{ usage.max_model_calls_per_day }}</td></tr>{% endif %}
   </tbody>
 </table>
 </div>
